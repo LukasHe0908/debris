@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+    <title>Class Tools 图片管理工具</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        background: #f4f5f7;
+        margin: 0;
+        padding: 0;
+        color: #111827;
+      }
+      .container {
+        max-width: 960px;
+        margin: 16px auto;
+        background: #fff;
+        border-radius: 16px;
+        padding: 16px 16px 24px;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+      }
+      h1 {
+        margin-top: 0;
+        font-size: 20px;
+        margin-bottom: 6px;
+      }
+      h2 {
+        margin-top: 20px;
+        font-size: 16px;
+        border-left: 4px solid #6366f1;
+        padding-left: 8px;
+      }
+      .subtitle {
+        color: #6b7280;
+        font-size: 12px;
+        margin-bottom: 12px;
+      }
+      label {
+        display: block;
+        font-size: 12px;
+        margin-bottom: 4px;
+        color: #4b5563;
+      }
+      input[type='text'],
+      input[type='password'] {
+        width: 100%;
+        padding: 8px 10px;
+        border-radius: 8px;
+        border: 1px solid #d1d5db;
+        font-size: 14px;
+      }
+      input[type='text']:focus,
+      input[type='password']:focus {
+        outline: none;
+        border-color: #6366f1;
+        box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.3);
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 12px 16px;
+        margin-bottom: 12px;
+      }
+      button {
+        border: none;
+        border-radius: 999px;
+        padding: 8px 16px;
+        font-size: 14px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        white-space: nowrap;
+      }
+      .btn-primary {
+        background: #6366f1;
+        color: #fff;
+      }
+      .btn-primary:hover {
+        background: #4f46e5;
+      }
+      .btn-secondary {
+        background: #e5e7eb;
+        color: #111827;
+      }
+      .btn-secondary:hover {
+        background: #d1d5db;
+      }
+      .btn-danger {
+        background: #fee2e2;
+        color: #b91c1c;
+      }
+      .btn-danger:hover {
+        background: #fecaca;
+      }
+      .btn-sm {
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+      }
+      .section {
+        margin-top: 14px;
+        padding: 12px 12px 14px;
+        border-radius: 12px;
+        background: #f9fafb;
+        border: 1px solid #e5e7eb;
+      }
+      .hidden {
+        display: none;
+      }
+      #message {
+        margin-top: 12px;
+        font-size: 12px;
+        min-height: 18px;
+      }
+      .msg-info {
+        color: #2563eb;
+      }
+      .msg-success {
+        color: #059669;
+      }
+      .msg-error {
+        color: #b91c1c;
+      }
+      code {
+        background: #111827;
+        color: #e5e7eb;
+        padding: 4px 6px;
+        border-radius: 6px;
+        font-size: 11px;
+        display: inline-block;
+        max-width: 100%;
+        white-space: pre-wrap;
+        word-break: break-all;
+      }
+      .url-row {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1.7fr) minmax(0, 1.3fr) auto;
+        gap: 8px;
+        align-items: flex-start;
+        padding: 8px 10px;
+        border-radius: 10px;
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        margin-bottom: 8px;
+      }
+
+      .drag-handle {
+        cursor: grab;
+        user-select: none;
+        font-size: 16px;
+        line-height: 1;
+        padding-right: 4px;
+        color: #9ca3af;
+      }
+
+      .drag-handle:active {
+        cursor: grabbing;
+      }
+
+      /* 移动端下依然单列布局 */
+      @media (max-width: 640px) {
+        .url-row {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .url-input {
+        width: 100%;
+      }
+      .url-preview {
+        border-radius: 8px;
+        border: 1px solid #e5e7eb;
+        padding: 4px;
+        background: #f9fafb;
+        text-align: center;
+        font-size: 11px;
+        color: #6b7280;
+        max-height: 160px;
+        overflow: auto;
+      }
+      .url-preview img {
+        max-width: 100%;
+        height: auto;
+        display: block;
+        margin: 0 auto;
+        border-radius: 6px;
+      }
+      .preview-placeholder {
+        padding: 16px 8px;
+      }
+      .badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: #eef2ff;
+        color: #4f46e5;
+        font-size: 11px;
+        margin-left: 4px;
+      }
+      .footer-hint {
+        font-size: 11px;
+        color: #9ca3af;
+        margin-top: 10px;
+      }
+
+      /* --------- 移动端适配 --------- */
+      @media (max-width: 640px) {
+        body {
+          background: #ffffff;
+        }
+        .container {
+          margin: 0;
+          max-width: 100%;
+          border-radius: 0;
+          padding: 12px 12px 18px;
+          box-shadow: none;
+        }
+        h1 {
+          font-size: 18px;
+        }
+        h2 {
+          font-size: 15px;
+        }
+        .grid {
+          grid-template-columns: 1fr;
+          gap: 10px;
+        }
+        .url-row {
+          grid-template-columns: 1fr;
+        }
+        .url-preview {
+          max-height: 200px;
+          order: 2;
+        }
+        .url-row > button,
+        .url-row > div:last-child {
+          order: 3;
+        }
+        .section {
+          padding: 10px 10px 12px;
+        }
+        button {
+          flex: 1;
+        }
+        #addUrlBtn,
+        #saveBtn {
+          width: 100%;
+          margin-top: 6px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Class Tools 图片管理工具</h1>
+      <div class="subtitle">修改 Cloudflare TXT 记录</div>
+
+      <!-- 配置 -->
+      <div class="section">
+        <h2>配置</h2>
+        <div class="grid">
+          <div>
+            <label for="token">API Token</label>
+            <input id="token" type="password" placeholder="CF API Token" />
+          </div>
+          <div>
+            <label for="zoneName">域名</label>
+            <input id="zoneName" type="text" placeholder="example.com" />
+          </div>
+          <div>
+            <label for="recordName">TXT 记录名称</label>
+            <input id="recordName" type="text" placeholder="_txt.example.com" />
+          </div>
+        </div>
+        <button id="loadBtn" class="btn-primary">加载 TXT 记录</button>
+      </div>
+
+      <!-- 当前记录 -->
+      <div id="recordSection" class="section hidden">
+        <div style="font-size: 12px; margin: 8px 0 4px">JSON：</div>
+        <code id="jsonContent"></code>
+      </div>
+
+      <div id="message"></div>
+
+      <!-- 编辑器 -->
+      <div id="editorSection" class="section hidden">
+        <h2>
+          URL 列表
+          <span class="badge">图片预览</span>
+        </h2>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px">
+          <button id="addUrlBtn" class="btn-secondary btn-sm">新增一行</button>
+          <button id="saveBtn" class="btn-primary">保存</button>
+        </div>
+        <div class="footer-hint"></div>
+        <div id="urlList"></div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+    <script>
+      const API_PREFIX = 'https://p.mise.run.place/https://api.cloudflare.com/client/v4';
+
+      /* ---------- LocalStorage 配置 ---------- */
+      function loadConfig() {
+        const cfg = JSON.parse(localStorage.getItem('cf_cfg') || '{}');
+        if (cfg.token) document.getElementById('token').value = cfg.token;
+        if (cfg.zone) document.getElementById('zoneName').value = cfg.zone;
+        if (cfg.record) document.getElementById('recordName').value = cfg.record;
+      }
+      function saveConfig() {
+        const cfg = {
+          token: document.getElementById('token').value.trim(),
+          zone: document.getElementById('zoneName').value.trim(),
+          record: document.getElementById('recordName').value.trim(),
+        };
+        localStorage.setItem('cf_cfg', JSON.stringify(cfg));
+      }
+      ['token', 'zoneName', 'recordName'].forEach(id => {
+        document.addEventListener('input', e => {
+          if (e.target.id === id) saveConfig();
+        });
+      });
+      loadConfig();
+
+      /* ---------- 工具函数 ---------- */
+      function setMessage(t, type = 'info') {
+        const el = document.getElementById('message');
+        el.textContent = t || '';
+        el.className = '';
+        if (!t) return;
+        el.classList.add(type === 'error' ? 'msg-error' : type === 'success' ? 'msg-success' : 'msg-info');
+      }
+
+      function b64DecodeUnicode(str) {
+        const clean = (str || '').replace(/["\s]/g, '');
+        return decodeURIComponent(escape(atob(clean)));
+      }
+      function b64EncodeUnicode(str) {
+        return btoa(unescape(encodeURIComponent(str)));
+      }
+
+      /* ---------- Cloudflare API ---------- */
+      async function getZoneId(token, name) {
+        const url = `${API_PREFIX}/zones?name=${encodeURIComponent(name)}`;
+        const res = await fetch(url, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const text = await res.text();
+        console.log('[getZoneId] raw response:', text);
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch (e) {
+          throw new Error('Zone 响应不是合法 JSON，可能是代理返回了 HTML / 错误页。');
+        }
+        if (!data.success || !data.result?.length) {
+          throw new Error('找不到 Zone 或 Cloudflare 返回错误：' + JSON.stringify(data.errors || data));
+        }
+        return data.result[0].id;
+      }
+
+      async function getTxtRecord(token, zoneId, recordName) {
+        const url = `${API_PREFIX}/zones/${zoneId}/dns_records?type=TXT&name=${encodeURIComponent(recordName)}`;
+        const res = await fetch(url, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const text = await res.text();
+        console.log('[getTxtRecord] raw response:', text);
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch (e) {
+          throw new Error('TXT 响应不是合法 JSON，可能是代理返回了 HTML / 错误页。');
+        }
+        if (!data.success || !data.result?.length) {
+          throw new Error('TXT 记录不存在或 Cloudflare 返回错误：' + JSON.stringify(data.errors || data));
+        }
+        return data.result[0];
+      }
+
+      async function updateTxtRecord(token, zoneId, recordId, content) {
+        const url = `${API_PREFIX}/zones/${zoneId}/dns_records/${recordId}`;
+        const body = JSON.stringify({ content });
+        const res = await fetch(url, {
+          method: 'PATCH',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body,
+        });
+        const text = await res.text();
+        console.log('[updateTxtRecord] raw response:', text);
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch (e) {
+          throw new Error('更新响应不是合法 JSON，可能是代理返回了 HTML / 错误页。');
+        }
+        if (!data.success) {
+          throw new Error('更新失败：' + JSON.stringify(data.errors || data));
+        }
+        return data.result;
+      }
+
+      /* ---------- 状态 & JSON 导出 ---------- */
+      // urls: [{ type: "image"|"video"|"mixed", image_url: string, video_url: string }]
+      const state = { zoneId: null, recordId: null, urls: [] };
+
+      function buildExportArray() {
+        return (state.urls || []).map(item => {
+          if (!item || typeof item !== 'object') {
+            return '';
+          }
+          const t = item.type || 'image';
+          if (t === 'video' || t === 'mixed') {
+            return {
+              type: t,
+              image_url: item.image_url || '',
+              video_url: item.video_url || '',
+            };
+          }
+          // image 类型保存为字符串
+          return item.image_url || '';
+        });
+      }
+
+      function updateJsonPreview() {
+        const output = buildExportArray();
+        const pretty = JSON.stringify(output, null, 2);
+        document.getElementById('jsonContent').textContent = pretty;
+        return output;
+      }
+
+      /* ---------- URL 列表渲染 & 拖拽 ---------- */
+      let sortableInited = false;
+      function initSortable() {
+        if (sortableInited) return;
+        const el = document.getElementById('urlList');
+        if (!el || typeof Sortable === 'undefined') return;
+
+        Sortable.create(el, {
+          animation: 150,
+          handle: '.drag-handle', // 只在拖拽手柄上拖动
+          ghostClass: 'drag-ghost',
+          onEnd(evt) {
+            const { oldIndex, newIndex } = evt;
+            if (oldIndex === newIndex || oldIndex == null || newIndex == null) return;
+            const moved = state.urls.splice(oldIndex, 1)[0];
+            state.urls.splice(newIndex, 0, moved);
+            // 按新的顺序重渲染 & 更新 JSON
+            renderUrlList();
+          },
+        });
+
+        sortableInited = true;
+      }
+
+      function renderUrlList() {
+        const box = document.getElementById('urlList');
+        box.innerHTML = '';
+        if (!Array.isArray(state.urls) || state.urls.length === 0) {
+          const empty = document.createElement('div');
+          empty.style.fontSize = '12px';
+          empty.style.color = '#9ca3af';
+          empty.textContent = '当前没有 URL，可点击下方“新增一行”。';
+          box.appendChild(empty);
+          updateJsonPreview();
+          return;
+        }
+
+        state.urls.forEach((item, i) => {
+          // 兜底，防止旧数据意外结构
+          if (!item || typeof item !== 'object') {
+            item = state.urls[i] = { type: 'image', image_url: String(item ?? ''), video_url: '' };
+          }
+          if (!item.type) item.type = 'image';
+          if (item.type !== 'image' && item.type !== 'video' && item.type !== 'mixed') {
+            item.type = 'image';
+          }
+          if (!('image_url' in item)) item.image_url = '';
+          if (!('video_url' in item)) item.video_url = '';
+
+          const row = document.createElement('div');
+          row.className = 'url-row';
+
+          /* 拖拽手柄 */
+          const handle = document.createElement('div');
+          handle.className = 'drag-handle';
+          handle.title = '拖拽排序';
+          handle.textContent = '⋮⋮';
+
+          /* 左侧：类型选择 + URL 输入 */
+          const leftCol = document.createElement('div');
+
+          // 类型选择
+          const typeRow = document.createElement('div');
+          typeRow.style.display = 'flex';
+          typeRow.style.gap = '8px';
+          typeRow.style.alignItems = 'center';
+          typeRow.style.marginBottom = '6px';
+
+          const typeLabel = document.createElement('span');
+          typeLabel.style.fontSize = '11px';
+          typeLabel.style.color = '#6b7280';
+          typeLabel.textContent = '类型';
+
+          const typeSelect = document.createElement('select');
+          typeSelect.style.flex = '1';
+          typeSelect.style.fontSize = '12px';
+          typeSelect.style.padding = '4px 8px';
+          typeSelect.style.borderRadius = '999px';
+          typeSelect.style.border = '1px solid #d1d5db';
+
+          [
+            { value: 'image', text: '图片' },
+            { value: 'video', text: '视频' },
+            { value: 'mixed', text: '混合' },
+          ].forEach(optInfo => {
+            const opt = document.createElement('option');
+            opt.value = optInfo.value;
+            opt.textContent = optInfo.text;
+            typeSelect.appendChild(opt);
+          });
+
+          typeSelect.value = item.type;
+          typeSelect.onchange = () => {
+            state.urls[i].type = typeSelect.value;
+            renderUrlList(); // 切换类型后重渲染输入区域
+          };
+
+          typeRow.appendChild(typeLabel);
+          typeRow.appendChild(typeSelect);
+          leftCol.appendChild(typeRow);
+
+          // 输入区域
+          const inputsWrap = document.createElement('div');
+          inputsWrap.style.display = 'flex';
+          inputsWrap.style.flexDirection = 'column';
+          inputsWrap.style.gap = '6px';
+
+          let imgInput, videoInput;
+
+          // image_url 输入（图片 或 mixed）
+          if (item.type === 'image' || item.type === 'mixed') {
+            const imgRow = document.createElement('div');
+            imgRow.style.display = 'flex';
+            imgRow.style.flexDirection = 'column';
+            imgRow.style.gap = '2px';
+
+            const lbl = document.createElement('span');
+            lbl.style.fontSize = '11px';
+            lbl.style.color = '#6b7280';
+            lbl.textContent = '图片 URL';
+
+            imgInput = document.createElement('input');
+            imgInput.type = 'text';
+            imgInput.value = item.image_url || '';
+            imgInput.className = 'url-input';
+            imgInput.placeholder = '图片 URL';
+            imgInput.oninput = () => {
+              state.urls[i].image_url = imgInput.value;
+              // 仅更新 JSON，不强制重渲染
+              updateJsonPreview();
+            };
+
+            imgRow.appendChild(lbl);
+            imgRow.appendChild(imgInput);
+            inputsWrap.appendChild(imgRow);
+          }
+
+          // video_url 输入（视频 或 mixed）
+          if (item.type === 'video' || item.type === 'mixed') {
+            const vRow = document.createElement('div');
+            vRow.style.display = 'flex';
+            vRow.style.flexDirection = 'column';
+            vRow.style.gap = '2px';
+
+            const lbl = document.createElement('span');
+            lbl.style.fontSize = '11px';
+            lbl.style.color = '#6b7280';
+            lbl.textContent = '视频 URL';
+
+            videoInput = document.createElement('input');
+            videoInput.type = 'text';
+            videoInput.value = item.video_url || '';
+            videoInput.className = 'url-input';
+            videoInput.placeholder = '视频 URL';
+            videoInput.oninput = () => {
+              state.urls[i].video_url = videoInput.value;
+              updateJsonPreview();
+            };
+
+            vRow.appendChild(lbl);
+            vRow.appendChild(videoInput);
+            inputsWrap.appendChild(vRow);
+          }
+
+          leftCol.appendChild(inputsWrap);
+
+          /* 中间：预览（仅 image_url 有预览） */
+          const preview = document.createElement('div');
+          preview.className = 'url-preview';
+
+          const ph = document.createElement('div');
+          ph.className = 'preview-placeholder';
+          ph.style.fontSize = '11px';
+          ph.style.color = '#6b7280';
+
+          const img = document.createElement('img');
+          img.referrerPolicy = 'no-referrer';
+
+          if (item.type === 'image' || item.type === 'mixed') {
+            if (item.image_url) {
+              img.src = item.image_url;
+              ph.textContent = '';
+            } else {
+              ph.textContent = '图片预览';
+            }
+            preview.appendChild(ph);
+            preview.appendChild(img);
+          } else {
+            // video 类型：不预览，只提示
+            ph.textContent = '视频不支持预览';
+            preview.appendChild(ph);
+          }
+
+          /* 右侧：删除按钮 */
+          const btnWrap = document.createElement('div');
+          const del = document.createElement('button');
+          del.textContent = '删除';
+          del.className = 'btn-danger btn-sm';
+          del.onclick = () => {
+            state.urls.splice(i, 1);
+            renderUrlList();
+          };
+          btnWrap.appendChild(del);
+
+          row.appendChild(handle);
+          row.appendChild(leftCol);
+          row.appendChild(preview);
+          row.appendChild(btnWrap);
+          box.appendChild(row);
+        });
+
+        // 每次渲染后同步 JSON 预览
+        updateJsonPreview();
+        initSortable();
+      }
+
+      /* ---------- 事件 ---------- */
+      document.getElementById('addUrlBtn').onclick = () => {
+        // 新增一行默认为 image 类型
+        state.urls.unshift({
+          type: 'image',
+          image_url: '',
+          video_url: '',
+        });
+        renderUrlList();
+      };
+
+      document.getElementById('loadBtn').onclick = async () => {
+        const token = document.getElementById('token').value.trim();
+        const zone = document.getElementById('zoneName').value.trim();
+        const rec = document.getElementById('recordName').value.trim();
+
+        if (!token || !zone || !rec) {
+          setMessage('请先填写 Token、域名和 TXT 记录名称。', 'error');
+          return;
+        }
+
+        setMessage('正在加载 TXT 记录…');
+        try {
+          state.zoneId = await getZoneId(token, zone);
+          const record = await getTxtRecord(token, state.zoneId, rec);
+          state.recordId = record.id;
+
+          const raw = record.content || '';
+          const clean = raw.replace(/["\s]/g, '');
+          const decoded = b64DecodeUnicode(clean);
+          const json = JSON.parse(decoded);
+
+          if (!Array.isArray(json)) {
+            throw new Error('解码后的 JSON 不是数组，请检查 TXT 内容格式。');
+          }
+
+          // 将原始 JSON 转成内部对象结构
+          state.urls = json.map(v => {
+            if (typeof v === 'string') {
+              // 纯图片字符串
+              return { type: 'image', image_url: v, video_url: '' };
+            }
+            if (v && typeof v === 'object') {
+              const type = v.type === 'video' || v.type === 'mixed' || v.type === 'image' ? v.type : 'image';
+              return {
+                type,
+                image_url: v.image_url || '',
+                video_url: v.video_url || '',
+              };
+            }
+            // 其它类型兜底
+            return { type: 'image', image_url: String(v ?? ''), video_url: '' };
+          });
+
+          document.getElementById('recordSection').classList.remove('hidden');
+          document.getElementById('editorSection').classList.remove('hidden');
+          renderUrlList();
+          setMessage('TXT 记录加载成功。', 'success');
+        } catch (e) {
+          console.error(e);
+          setMessage(e.message || '加载失败。', 'error');
+        }
+      };
+
+      document.getElementById('saveBtn').onclick = async () => {
+        const token = document.getElementById('token').value.trim();
+        if (!token) {
+          setMessage('需要输入 Token 才能更新。', 'error');
+          return;
+        }
+        if (!state.zoneId || !state.recordId) {
+          setMessage('请先加载 TXT 记录。', 'error');
+          return;
+        }
+
+        // 使用当前 state 构造导出 JSON
+        const output = buildExportArray();
+        const jsonStr = JSON.stringify(output); // 存到 TXT 里用紧凑格式
+
+        let b64;
+        try {
+          b64 = b64EncodeUnicode(jsonStr);
+        } catch (e) {
+          setMessage('Base64 编码失败：' + e.message, 'error');
+          return;
+        }
+
+        setMessage('正在更新 TXT 记录…');
+        try {
+          await updateTxtRecord(token, state.zoneId, state.recordId, b64);
+          // 同步预览（保持缩进美观）
+          updateJsonPreview();
+          setMessage('已成功更新到 Cloudflare。', 'success');
+        } catch (e) {
+          console.error(e);
+          setMessage(e.message || '更新失败。', 'error');
+        }
+      };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+    <script>
+      if (navigator.userAgent.includes('Mobile')) eruda.init();
+    </script>
+  </body>
+</html>

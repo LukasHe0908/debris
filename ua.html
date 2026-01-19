@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        font-family: Arial, Helvetica, sans-serif;
+      }
+      html,
+      body {
+        height: 100%;
+        width: 100%;
+        padding: 0;
+        margin: 0;
+      }
+      body {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+      #info {
+        font-size: x-large;
+        background-color: #6bbaff;
+        padding: 0.5em;
+        border-radius: 1em;
+        text-align: center;
+      }
+      #info .copy {
+        background-color: #eee;
+        border: solid #888 2px;
+        display: inline-block;
+        padding: 0.125em 0.25em;
+        border-radius: 0.25em;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+      #info .copy:hover {
+        background-color: #aaa;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="info">
+      UserAgent:
+      <div class="copy">Copy</div>
+      <br />
+      <span></span>
+    </div>
+  </body>
+  <script>
+    document.querySelector('#info > span').innerHTML = navigator.userAgent;
+    document.querySelector('#info .copy').addEventListener('click', () => {
+      navigator.clipboard.writeText(navigator.userAgent);
+    });
+  </script>
+</html>

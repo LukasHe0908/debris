@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chevereto 多接口图片上传</title>
+
+    <!-- MDUI v2 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mdui@2/mdui.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/mdui@2/mdui.global.js"></script>
+
+    <style>
+      .container {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 24px 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+      }
+
+      h1 {
+        font-size: 1.4rem;
+        margin-bottom: 16px;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
+
+      @media (min-width: 768px) {
+        .grid {
+          grid-template-columns: 1fr 1fr;
+        }
+        .span-2 {
+          grid-column: span 2;
+        }
+      }
+
+      .card {
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .row {
+        display: flex;
+        gap: 8px;
+        margin-top: 12px;
+      }
+
+      .endpoint-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 0;
+        &:not(:last-child) {
+          border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+        }
+        span {
+          flex: 1;
+          white-space: normal;
+          word-break: break-all;
+        }
+      }
+
+      #uploadResult {
+        display: none;
+        padding: 8px;
+        border-radius: 8px;
+        background: rgba(0, 0, 0, 0.04);
+        word-break: break-all;
+        a {
+          color: inherit;
+          text-decoration: underline;
+        }
+      }
+
+      input[type='file'] {
+        margin: 12px 0;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="container">
+      <h1>Chevereto 多接口图片上传</h1>
+
+      <!-- 接口选择 -->
+      <mdui-card class="card">
+        <mdui-select id="endpointSelect" label="选择接口"></mdui-select>
+      </mdui-card>
+
+      <div class="grid">
+        <!-- 上传 -->
+        <mdui-card class="card">
+          <h2>上传图片</h2>
+          <input type="file" id="fileInput" accept="image/*" />
+          <mdui-button onclick="upload()">上传</mdui-button>
+          <!-- 上传结果 -->
+          <div id="uploadResult" style="margin-top: 12px"></div>
+        </mdui-card>
+
+        <!-- 新增接口 -->
+        <mdui-card class="card">
+          <h2>新增接口</h2>
+
+          <mdui-text-field id="domainInput" label="域名（不含协议）" placeholder="img.example.com"></mdui-text-field>
+
+          <mdui-text-field id="keyInput" label="API Key"></mdui-text-field>
+
+          <div class="row">
+            <mdui-button onclick="saveEndpoint()">保存</mdui-button>
+            <mdui-button variant="outlined" onclick="clearForm()">清空</mdui-button>
+          </div>
+        </mdui-card>
+      </div>
+
+      <!-- 接口列表 -->
+      <mdui-card class="card span-2">
+        <h2>接口列表</h2>
+        <div id="endpointList"></div>
+      </mdui-card>
+    </div>
+
+    <script>
+      const STORAGE_KEY = 'chevereto_endpoints';
+      const ACTIVE_KEY = 'chevereto_active';
+
+      let endpoints = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+      let active = localStorage.getItem(ACTIVE_KEY);
+
+      function normalizeActive() {
+        if (active === null || isNaN(active) || Number(active) < 0 || Number(active) >= endpoints.length) {
+          active = endpoints.length ? '0' : null;
+          if (active !== null) {
+            localStorage.setItem(ACTIVE_KEY, active);
+          } else {
+            localStorage.removeItem(ACTIVE_KEY);
+          }
+        }
+      }
+
+      function render() {
+        normalizeActive();
+
+        const select = document.getElementById('endpointSelect');
+        const list = document.getElementById('endpointList');
+
+        select.innerHTML = '';
+        list.innerHTML = '';
+
+        endpoints.forEach((e, i) => {
+          const item = document.createElement('mdui-menu-item');
+          item.setAttribute('value', String(i));
+          item.textContent = e.domain;
+
+          if (String(i) === active) {
+            item.setAttribute('selected', '');
+          }
+
+          select.appendChild(item);
+
+          const div = document.createElement('div');
+          div.className = 'endpoint-item';
+          div.innerHTML = `
+      <span>${e.domain} : ${e.key}</span>
+      <mdui-button variant="text" onclick="removeEndpoint(${i})">
+        删除
+      </mdui-button>
+    `;
+          list.appendChild(div);
+        });
+
+        // 同步 select 的 value
+        if (active !== null) {
+          select.value = active;
+        }
+      }
+
+      const endpointSelect = document.getElementById('endpointSelect');
+
+      endpointSelect.addEventListener('change', () => {
+        active = endpointSelect.value;
+        localStorage.setItem(ACTIVE_KEY, active);
+      });
+
+      function normalizeDomain(input) {
+        try {
+          if (!/^https?:\/\//i.test(input)) input = 'https://' + input;
+          return new URL(input).host;
+        } catch {
+          return null;
+        }
+      }
+
+      function saveEndpoint() {
+        const raw = domainInput.value.trim();
+        const key = keyInput.value.trim();
+        const domain = normalizeDomain(raw);
+
+        if (!domain || !key) {
+          mdui.snackbar({ message: '域名格式错误或未填写 API Key' });
+          return;
+        }
+
+        endpoints.push({ domain, key });
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(endpoints));
+        clearForm();
+        render();
+      }
+
+      function removeEndpoint(i) {
+        endpoints.splice(i, 1);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(endpoints));
+
+        if (active !== null) {
+          if (Number(active) === i) {
+            active = null;
+            localStorage.removeItem(ACTIVE_KEY);
+          } else if (Number(active) > i) {
+            active = String(Number(active) - 1);
+            localStorage.setItem(ACTIVE_KEY, active);
+          }
+        }
+
+        render();
+      }
+
+      function clearForm() {
+        domainInput.value = '';
+        keyInput.value = '';
+      }
+
+      async function upload() {
+        const idx = endpointSelect.value;
+        const ep = endpoints[idx];
+        const file = fileInput.files[0];
+        const result = document.getElementById('uploadResult');
+
+        if (!ep) {
+          mdui.snackbar({ message: '未选择接口' });
+          return;
+        }
+        if (!file) {
+          mdui.snackbar({ message: '未选择图片' });
+          return;
+        }
+
+        result.style.display = 'none';
+        result.textContent = '';
+
+        const form = new FormData();
+        form.append('key', ep.key);
+        form.append('source', file);
+
+        const target = 'https://p.mise.run.place/https://' + ep.domain + '/api/1/upload';
+
+        try {
+          const res = await fetch(target, { method: 'POST', body: form });
+          const data = await res.json();
+
+          if (data.success) {
+            const url = data.image.url;
+
+            result.innerHTML = `
+        <div><strong>上传成功</strong></div>
+        <div>图片地址：</div>
+        <code>${url}</code>
+      `;
+            result.style.display = 'block';
+          } else {
+            result.innerHTML = `<strong>上传失败</strong><br><code>${JSON.stringify(data)}</code>`;
+            result.style.display = 'block';
+          }
+        } catch {
+          result.innerHTML = '<strong>网络错误</strong>';
+          result.style.display = 'block';
+        }
+      }
+
+      render();
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+    <script>
+      if (/Mobile|Android|iPhone/i.test(navigator.userAgent)) {
+        eruda.init();
+      }
+    </script>
+  </body>
+</html>
