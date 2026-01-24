@@ -73,12 +73,11 @@ async function handler(request) {
   if (m.match) {
     const rest = m.rest;
 
-    // referer = 前半段，realUrl = 最后一个 http(s):// 开始
-    const match = rest.match(/(https?:\/\/[^]+)$/);
+    const match = rest.match(/.*(?=\/http)/);
     if (!match) return makeRes('Bad Request', 400);
 
-    const realUrl = match[1];
-    const referer = rest.slice(0, rest.length - realUrl.length).replace(/\/$/, '');
+    const referer = match[0];
+    const realUrl = rest.slice(referer.length + 1);
 
     return proxyFetch(realUrl, request, { referer });
   }
