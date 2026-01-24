@@ -1,8 +1,8 @@
 'use strict';
 
 const ASSET_URL = 'https://404.mise.eu.org/';
-const DEFAULT_CACHE = 4 * 60 * 60;
-const MAX_CACHE = 86400;
+const DEFAULT_CACHE = 4 * 60 * 60; // 4h
+const MAX_CACHE = 31536000; // 1 year
 
 /* ================= utils ================= */
 function matchPrefix(path, prefix) {
@@ -47,18 +47,10 @@ async function handler(request) {
   // 自动补全 http(s):/ → http(s)://
   path = path.replace(/^https?:\/(?!\/)/, m => m + '/');
 
-  if (request.method === 'OPTIONS' || path === 'generate_204') {
-    return makeRes('', 204);
-  }
-  if (path.startsWith('generate_200')) {
-    return makeRes('', 200);
-  }
+  if (request.method === 'OPTIONS' || path === 'generate_204') return makeRes('', 204);
+  if (path.startsWith('generate_200')) return makeRes('', 200);
 
   let m;
-
-  /* ---------- cache_all ---------- */
-  m = matchPrefix(path, 'cache_all/');
-  if (m.match) return handleCacheAll(m.rest, request);
 
   /* ---------- cache ---------- */
   m = matchPrefix(path, 'cache/');
@@ -70,30 +62,14 @@ async function handler(request) {
 
   /* ---------- set_referer ---------- */
   m = matchPrefix(path, 'set_referer/');
-  if (m.match) {
-    const rest = m.rest;
-
-    const match = rest.match(/.*(?=\/http)/);
-    if (!match) return makeRes('Bad Request', 400);
-
-    const referer = match[0];
-    const realUrl = rest.slice(referer.length + 1);
-
-    return proxyFetch(realUrl, request, { referer });
-  }
+  if (m.match) return handleSetReferer(m.rest, request);
 
   /* ---------- keep_referer ---------- */
   m = matchPrefix(path, 'keep_referer/');
-  if (m.match) {
-    return proxyFetch(m.rest, request, {
-      referer: request.headers.get('Referer'),
-    });
-  }
+  if (m.match) return handleKeepReferer(m.rest, request);
 
   /* ---------- normal proxy ---------- */
-  if (path.startsWith('http')) {
-    return proxyFetch(path, request, {});
-  }
+  if (path.startsWith('http')) return proxyFetch(path, request, {});
 
   return fetch(ASSET_URL);
 }
@@ -101,66 +77,68 @@ async function handler(request) {
 /* ================= cache helpers ================= */
 async function handleCache(rest, request) {
   let ttl = DEFAULT_CACHE;
-  let realUrl = rest;
+  let subPath = rest;
 
-  const m = rest.match(/^(\d+)\/(http.*)$/);
+  // 支持 cache/<duration>/...
+  const m = rest.match(/^(\d+)\/(.+)$/);
   if (m) {
     ttl = Math.min(parseInt(m[1], 10) || DEFAULT_CACHE, MAX_CACHE);
-    realUrl = m[2];
+    subPath = m[2];
   }
 
-  return fetchWithCache(realUrl, request, ttl, false);
+  // 递归处理 cache 内的子路由
+  const res = await routeInsideCache(subPath, request);
+
+  // GET / HEAD 才做缓存
+  if (['GET', 'HEAD'].includes(request.method)) {
+    const buf = await res.arrayBuffer();
+    const etag = await genETag(buf);
+    const headers = new Headers(res.headers);
+    headers.set('ETag', etag);
+    headers.set('Cache-Control', `public, max-age=${ttl}`);
+    addBaseHeaders(headers);
+    forwardSetCookie(headers);
+    stripCookies(headers);
+
+    const cachedRes = new Response(buf, { status: res.status, headers });
+    await caches.default.put(new Request(request.url), cachedRes.clone());
+    return handleETag(request, cachedRes);
+  }
+
+  return res;
 }
 
-async function handleCacheAll(rest, request) {
-  let ttl = DEFAULT_CACHE;
-  let realUrl = rest;
+/* 递归处理 cache 内的子路由 */
+async function routeInsideCache(path, request) {
+  let m;
 
-  const m = rest.match(/^(\d+)\/(http.*)$/);
-  if (m) {
-    ttl = Math.min(parseInt(m[1], 10) || DEFAULT_CACHE, MAX_CACHE);
-    realUrl = m[2];
-  }
+  m = matchPrefix(path, 'all/');
+  if (m.match) return proxyFetch(m.rest, request, { redirect: true });
 
-  return fetchWithCache(realUrl, request, ttl, true);
+  m = matchPrefix(path, 'set_referer/');
+  if (m.match) return handleSetReferer(m.rest, request);
+
+  m = matchPrefix(path, 'keep_referer/');
+  if (m.match) return handleKeepReferer(m.rest, request);
+
+  if (path.startsWith('http')) return proxyFetch(path, request, {});
+
+  return fetch(ASSET_URL);
 }
 
-async function fetchWithCache(url, request, ttl, followRedirect) {
-  if (!['GET', 'HEAD'].includes(request.method)) {
-    return proxyFetch(url, request, { redirect: followRedirect });
-  }
+/* ================= set_referer / keep_referer ================= */
+async function handleSetReferer(rest, request) {
+  const match = rest.match(/.*(?=\/http)/);
+  if (!match) return makeRes('Bad Request', 400);
 
-  const cache = caches.default;
-  const cacheKey = new Request(url, { method: 'GET' });
+  const referer = match[0];
+  const realUrl = rest.slice(referer.length + 1);
+  return proxyFetch(realUrl, request, { referer });
+}
 
-  const cached = await cache.match(cacheKey);
-  if (cached) return handleETag(request, cached);
-
-  const upstream = await fetch(url, buildFetchInit(request, { redirect: followRedirect }));
-
-  if (!upstream.ok) {
-    return buildDownstreamResponse(request, upstream);
-  }
-
-  const buf = await upstream.arrayBuffer();
-  const etag = await genETag(buf);
-
-  const headers = new Headers(upstream.headers);
-  headers.set('ETag', etag);
-  headers.set('Cache-Control', `public, max-age=${ttl}`);
-
-  forwardSetCookie(headers);
-  stripCookies(headers);
-  addBaseHeaders(headers);
-
-  const res = new Response(buf, {
-    status: upstream.status,
-    headers,
-  });
-
-  await cache.put(cacheKey, res.clone());
-
-  return handleETag(request, res);
+async function handleKeepReferer(rest, request) {
+  const referer = request.headers.get('Referer');
+  return proxyFetch(rest, request, { referer });
 }
 
 /* ================= proxy ================= */
@@ -182,25 +160,15 @@ function buildFetchInit(request, opt) {
 
   const body = ['GET', 'HEAD'].includes(request.method) ? null : request.body;
 
-  return {
-    method: request.method,
-    headers,
-    body,
-    redirect: opt.redirect ? 'follow' : 'manual',
-  };
+  return { method: request.method, headers, body, redirect: opt.redirect ? 'follow' : 'manual' };
 }
 
 function buildDownstreamResponse(request, res) {
   const headers = new Headers(res.headers);
-
   forwardSetCookie(headers);
   stripCookies(headers);
   addBaseHeaders(headers);
-
-  return new Response(res.body, {
-    status: res.status,
-    headers,
-  });
+  return new Response(res.body, { status: res.status, headers });
 }
 
 /* ================= cookie rules ================= */
@@ -220,10 +188,7 @@ function handleETag(request, response) {
   const etag = response.headers.get('ETag');
 
   if (etag && inm === etag) {
-    return new Response(null, {
-      status: 304,
-      headers: response.headers,
-    });
+    return new Response(null, { status: 304, headers: response.headers });
   }
   return response;
 }
