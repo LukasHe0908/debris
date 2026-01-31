@@ -117,6 +117,9 @@ async function handleCache(rest, request) {
   }
 
   // 缓存不存在或过期 → fetch
+  const res = await routeInsideCache(subPath, request);
+
+  // GET / HEAD 请求才缓存
   if (['GET', 'HEAD'].includes(request.method)) {
     const buf = await res.arrayBuffer();
     const etag = await genETag(buf);
