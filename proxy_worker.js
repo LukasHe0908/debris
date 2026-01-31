@@ -82,7 +82,7 @@ async function handleCache(rest, request) {
   // 支持 cache/<duration>/...
   const m = rest.match(/^(\d+)\/(.+)$/);
   if (m) {
-    ttl = Math.min(parseInt(m[1], 10) || DEFAULT_CACHE, MAX_CACHE);
+    ttl = Math.min(parseInt(m[1], 10) ?? DEFAULT_CACHE, MAX_CACHE);
     subPath = m[2];
   }
 
@@ -92,14 +92,11 @@ async function handleCache(rest, request) {
     // 尝试读取缓存
     let cached = await caches.default.match(cacheKey);
     if (cached) {
-      const dateHeader = cached.headers.get('Date');
-      if (dateHeader) {
-        const age = (Date.now() - new Date(dateHeader).getTime()) / 1000;
-        if (age > ttl) {
-          // TTL 超过 → 删除缓存
-          await caches.default.delete(cacheKey);
-          cached = null;
-        }
+      const ageHeader = cached.headers.get('Age');
+      if (ageHeader > ttl || ttl == 0) {
+        // TTL 超过 → 删除缓存
+        await caches.default.delete(cacheKey);
+        cached = null;
       }
       if (cached) {
         // 缓存未过期
@@ -174,8 +171,6 @@ function buildFetchInit(request, opt) {
   headers.delete('Origin');
   headers.delete('Cookie');
   headers.delete('Referer');
-
-  if (!headers.get('Date')) headers.set('Date', new Date().toUTCString());
 
   const xCookie = request.headers.get('x-cookie');
   if (xCookie) headers.set('Cookie', xCookie);
