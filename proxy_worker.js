@@ -92,23 +92,15 @@ async function handleCache(rest, request) {
     // 尝试读取缓存
     let cached = await caches.default.match(cacheKey);
     if (cached) {
-      const cc = cached.headers.get('Cache-Control');
       const dateHeader = cached.headers.get('Date');
-
-      if (cc && dateHeader) {
-        const maxAgeMatch = cc.match(/max-age=(\d+)/);
-        if (maxAgeMatch) {
-          const maxAge = parseInt(maxAgeMatch[1], 10);
-          const age = (Date.now() - new Date(dateHeader).getTime()) / 1000;
-
-          if (age > maxAge) {
-            // TTL 超过 → 删除缓存
-            await caches.default.delete(cacheKey);
-            cached = null;
-          }
+      if (dateHeader) {
+        const age = (Date.now() - new Date(dateHeader).getTime()) / 1000;
+        if (age > ttl) {
+          // TTL 超过 → 删除缓存
+          await caches.default.delete(cacheKey);
+          cached = null;
         }
       }
-
       if (cached) {
         // 缓存未过期
         return handleETag(request, cached);
