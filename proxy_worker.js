@@ -86,7 +86,7 @@ async function handleCache(rest, request) {
     subPath = m[2];
   }
 
-  const cacheKey = new Request(request.url);
+  const cacheKey = new Request(subPath);
 
   if (['GET', 'HEAD'].includes(request.method)) {
     // 尝试读取缓存
